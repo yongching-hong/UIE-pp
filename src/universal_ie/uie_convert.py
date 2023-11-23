@@ -10,7 +10,7 @@ from .structure_marker import BaseStructureMarker
 from universal_ie.text2spotasoc import Text2SpotAsoc
 from .ie_format import Label, Sentence, Event, Span, Entity, Relation as UIERelation
 
-def convert_sent_LLM_UIE(datasets: List, skip_NA = True):
+def convert_sent_LLM_UIE(datasets: List):
     uie_sentences: List[Sentence] = []
     for example in datasets:
         sent_tokens = example['sentence'].split(" ")
@@ -24,7 +24,7 @@ def convert_sent_LLM_UIE(datasets: List, skip_NA = True):
         if example.get('events'):
             uie_evs = convert_events(example['events'])
         if example.get('relations'):
-            uie_rels = convert_relations(example['relations'], skip_NA)
+            uie_rels = convert_relations(example['relations'])
         
         uie_sent = Sentence(
             tokens=sent_tokens,
@@ -39,7 +39,7 @@ def convert_sent_LLM_UIE(datasets: List, skip_NA = True):
 def convert_entities(entities):
     uie_ents = []
     for entity in entities:
-        if entity['type'] == 'NA' or entity['type'] == '':
+        if not entity['type'] or entity['type'] == 'NA' or entity['type'] == '':
             continue
         start, end = entity['pos']
         indexes = list(range(start, end))
@@ -59,7 +59,7 @@ def convert_entities(entities):
 def convert_events(events): 
     uie_evs = []
     for event in events:
-        if event['type'] == 'NA' or event['type'] == '':
+        if not event['type'] or event['type'] == 'NA' or event['type'] == '':
             continue
         args = []
         for idx, arg in enumerate(event['arguments']):
@@ -88,13 +88,11 @@ def convert_events(events):
     
     return uie_evs
 
-def convert_relations(relations, skip_none = True):
+def convert_relations(relations):
     uie_rels = []
     for idx, relation in enumerate(relations):
-        if (relation['type'] == 'NA' or relation['type'] == '' or not relation['type']):
+        if relation['type'] == 'NA' or relation['type'] == '' or not relation['type']:
             continue
-        if not relation['type']:
-            relation['type'] = 'NA'
         
         head = Entity(
             span=Span(
@@ -123,14 +121,13 @@ def convert_relations(relations, skip_none = True):
 def convert_graph(
     generation_class: GenerationFormat,
     datasets: List,
-    label_mapper: Dict = None,
-    skip_NA = True
+    label_mapper: Dict = None
 ):
     convertor: Text2SpotAsoc = generation_class(
         structure_maker=BaseStructureMarker(),
         label_mapper=label_mapper
     )
-    uie_datasets = convert_sent_LLM_UIE(datasets, skip_NA)
+    uie_datasets = convert_sent_LLM_UIE(datasets)
 
     prompts = []
     for instance in uie_datasets:

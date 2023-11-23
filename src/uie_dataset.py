@@ -284,13 +284,12 @@ class UIEInstructions(datasets.GeneratorBasedBuilder):
         else:
             return random.choice(task_instructions)
         
-    def _construct_uie_labels(self, datasets, skip_na = True):
+    def _construct_uie_labels(self, datasets):
         generation_class = Text2SpotAsoc
 
         prompts, record_schema = convert_graph(
             generation_class,
-            datasets=datasets,
-            skip_NA=skip_na
+            datasets=datasets
         )
 
         return prompts, record_schema
@@ -584,7 +583,6 @@ class UIEInstructions(datasets.GeneratorBasedBuilder):
         instances = self._sampling_dataset(instances, sampling_strategy, max_num_instances)
 
         uie_labels, record_schema = self._construct_uie_labels(instances)
-        uie_labels_w_na, _ = self._construct_uie_labels(instances, False)
         
         record_schema.type_list = labels
         
@@ -596,7 +594,7 @@ class UIEInstructions(datasets.GeneratorBasedBuilder):
             ordered_prompt=True
         )
 
-        for (idx, instance), label, ground_truth in zip(enumerate(instances), uie_labels, uie_labels_w_na):
+        for (idx, instance), label in zip(enumerate(instances), uie_labels):
             positive = [ ent['type'] for ent in instance['relations'] if ent['type'] ]
             asoc_prefix_ids, asoc_prefix, negative_asoc = uie_sampler.sample_asoc(positive)
             example = sample_template.copy()
@@ -607,7 +605,7 @@ class UIEInstructions(datasets.GeneratorBasedBuilder):
                 "id": str(idx),
                 "sentence": instance['sentence'],
                 "label": label,
-                "ground_truth": ground_truth,
+                "ground_truth": label,
                 "instruction": instruction,
                 "answer_prefix": self.config.prompt["response_split"]
             }
